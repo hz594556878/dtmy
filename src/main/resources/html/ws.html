@@ -3,25 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <title>WebSocketTest</title>
+    <script type="text/javascript" src="http://www.w3school.com.cn/jquery/jquery-1.11.1.min.js"></script>
 </head>
 <body>
 <script>
     var socket;
     if(window.WebSocket){
-        socket = new WebSocket("ws://localhost:8080");
+        socket = new WebSocket("ws://localhost:8080/");
         // websocket收到消息
         socket.onmessage = function(event){
+            var blob = event.data;
+            /*if(blob instanceof Blob){
+                var newBlob = blob.slice(0,blob.size);
+                var reader = new FileReader();
+                reader.readAsBinaryString(newBlob);
 
-        }
+                reader.onload = function(evt){
+                    if(evt.target.readyState == FileReader.DONE){
+                        var result = evt.target.result;
+                        //var source = window.URL.createObjectURL(newBlob);
+                        alert(result);
+                    }
+                }
+            }*/
+
+            var content = $("#content").html();
+            blob += content + "\r\n";
+            $("#content").html(blob);
+        };
 
         // websocket连接打开
         socket.onopen = function (event) {
-            alert("websocket 连接打开");
+            console.log("websocket 连接打开");
         };
 
         // websocket连接关闭
         socket.onclose = function (event) {
-            alert("websocket 连接关闭");
+            console.log("websocket 连接关闭");
         };
     }else{
         alert("你的浏览器不支持websocket");
@@ -38,5 +56,10 @@
         }
     }
 </script>
+<form onsubmit="return false;">
+    <input type="text" name="message">
+    <input type="button" value="提交" onclick="send(this.form.message.value)">
+    <div id="content"></div>
+</form>
 </body>
 </html>

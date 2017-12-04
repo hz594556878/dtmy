@@ -1,6 +1,12 @@
 package com.dtmy.vertx.verticle;
 
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.ServerWebSocket;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * <ul>
@@ -16,10 +22,23 @@ import io.vertx.core.AbstractVerticle;
 public class WebSocketVerticle extends AbstractVerticle {
     @Override
     public void start() throws Exception {
-        vertx.createHttpServer().websocketHandler(ws -> ws.handler(ws::writeBinaryMessage)).requestHandler(req ->{
-            if(req.uri().equals("/")){
-                req.response().sendFile("ws.html");
+
+        Map<String, ServerWebSocket> connectionMap = new HashMap<>(16);
+
+        HttpServer server = vertx.createHttpServer().requestHandler(req -> {
+            if ("/".equals(req.uri())) {
+                req.response().sendFile("html/ws.html");
             }
+        });
+
+        server.websocketHandler(webSocket -> {
+            webSocket.frameHandler(handler -> {
+                String textData = handler.textData();
+
+                System.out.println(textData);
+                webSocket.writeTextMessage(textData);
+
+            });
         }).listen(8080);
     }
 }
