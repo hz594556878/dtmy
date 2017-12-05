@@ -1,9 +1,9 @@
 package com.dtmy.vertx.verticle;
 
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.ServerWebSocket;
+import io.vertx.ext.web.Router;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,25 +20,51 @@ import java.util.Map;
  * @version 2.0.0
  */
 public class WebSocketVerticle extends AbstractVerticle {
+    private Map<String, ServerWebSocket> connectionMap = new HashMap<>(16);
+
     @Override
     public void start() throws Exception {
 
-        Map<String, ServerWebSocket> connectionMap = new HashMap<>(16);
+        HttpServer server = vertx.createHttpServer();
 
-        HttpServer server = vertx.createHttpServer().requestHandler(req -> {
-            if ("/".equals(req.uri())) {
-                req.response().sendFile("html/ws.html");
-            }
+        Router router = Router.router(vertx);
+
+        router.route("/").handler(routingContext -> {
+            routingContext.response().sendFile("html/ws.html");
         });
+        websocketMethod(server);
+        server.requestHandler(router::accept).listen(8080);
+    }
 
+    public void websocketMethod(HttpServer server) {
         server.websocketHandler(webSocket -> {
+            // 获取每一次链接的ID
+            String id = webSocket.binaryHandlerID();
+            if (!checkID(id)) {
+                connectionMap.put(id, webSocket);
+            }
+
+            //　WebSocket 连接
             webSocket.frameHandler(handler -> {
                 String textData = handler.textData();
-
-                System.out.println(textData);
-                webSocket.writeTextMessage(textData);
-
+                String currID = webSocket.binaryHandlerID();
+                for (Map.Entry<String, ServerWebSocket> entry : connectionMap.entrySet()) {
+                    if (currID.equals(entry.getKey())) {
+                        continue;
+                    }
+                    entry.getValue().writeTextMessage(textData);
+                }
             });
-        }).listen(8080);
+
+            // WebSocket 关闭
+            webSocket.closeHandler(handler -> {
+                System.out.println(id + " 关闭连接");
+                connectionMap.remove(id);
+            });
+        });
+    }
+
+    public boolean checkID(String id) {
+        return connectionMap.containsKey(id);
     }
 }

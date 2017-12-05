@@ -9,24 +9,10 @@
 <script>
     var socket;
     if(window.WebSocket){
-        socket = new WebSocket("ws://localhost:8080/");
+        socket = new WebSocket("ws://172.16.1.29:8080/");
         // websocket收到消息
         socket.onmessage = function(event){
             var blob = event.data;
-            /*if(blob instanceof Blob){
-                var newBlob = blob.slice(0,blob.size);
-                var reader = new FileReader();
-                reader.readAsBinaryString(newBlob);
-
-                reader.onload = function(evt){
-                    if(evt.target.readyState == FileReader.DONE){
-                        var result = evt.target.result;
-                        //var source = window.URL.createObjectURL(newBlob);
-                        alert(result);
-                    }
-                }
-            }*/
-
             var content = $("#content").html();
             blob += content + "\r\n";
             $("#content").html(blob);
