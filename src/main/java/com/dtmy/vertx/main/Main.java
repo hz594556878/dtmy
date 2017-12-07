@@ -3,8 +3,6 @@ package com.dtmy.vertx.main;
 import com.dtmy.vertx.verticle.PageVerticle;
 import com.dtmy.vertx.verticle.WebSocketVerticle;
 import io.vertx.core.Vertx;
-import io.vertx.redis.RedisClient;
-import io.vertx.redis.RedisOptions;
 
 /**
  * <ul>

@@ -1,6 +1,7 @@
 package com.dtmy.vertx.verticle;
 
 import com.dtmy.vertx.common.Topic;
+import com.dtmy.vertx.redis.CommonRedis;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.eventbus.EventBus;
 import io.vertx.core.eventbus.MessageConsumer;
@@ -32,9 +33,12 @@ public class WebSocketVerticle extends AbstractVerticle {
 
     private String username;
 
+    private CommonRedis redisClient;
+
     @Override
     public void start() throws Exception {
         eventBus = vertx.eventBus();
+        redisClient = new CommonRedis(vertx);
         consumer = eventBus.consumer(Topic.USERNAME);
 
         HttpServer server = vertx.createHttpServer();
@@ -46,20 +50,19 @@ public class WebSocketVerticle extends AbstractVerticle {
         consumer.handler(message -> setUsername(message.body().toString()));
 
         server.websocketHandler(webSocket -> {
-            boolean isLogin = false;
             String id = getUsername();
-            System.out.println("id: " + id);
-            if (!"".equals(id) && !checkID(id) ) {
-                isLogin = true;
+            String uuid = webSocket.binaryHandlerID();
+            redisClient.set(uuid, id);
+            if (!"".equals(id) && !checkID(id)) {
                 connectionMap.put(id, webSocket);
             }
             //　WebSocket 连接
-            writeTextMessage(webSocket, isLogin);
+            writeTextMessage(webSocket);
             closeWebSocket(webSocket, id);
         });
     }
 
-    public void writeTextMessage(ServerWebSocket webSocket, boolean isLogin) {
+    public void writeTextMessage(ServerWebSocket webSocket) {
         webSocket.frameHandler(handler -> {
             String textData = buildMessage(handler.textData());
             for (Map.Entry<String, ServerWebSocket> entry : connectionMap.entrySet()) {
@@ -67,7 +70,6 @@ public class WebSocketVerticle extends AbstractVerticle {
             }
         });
     }
-
 
 
     public void closeWebSocket(ServerWebSocket webSocket, String id) {
@@ -86,7 +88,7 @@ public class WebSocketVerticle extends AbstractVerticle {
         this.username = username;
     }
 
-    public String buildMessage(String srcMessage){
+    public String buildMessage(String srcMessage) {
         String id = getUsername();
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
