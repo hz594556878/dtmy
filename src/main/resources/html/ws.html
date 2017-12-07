@@ -9,13 +9,13 @@
 <script>
     var socket;
     if(window.WebSocket){
-        socket = new WebSocket("ws://172.16.1.29:8080/");
+        socket = new WebSocket("ws://172.16.1.29:8880/");
         // websocket收到消息
         socket.onmessage = function(event){
             var blob = event.data;
-            var content = $("#content").html();
-            blob += content + "\r\n";
-            $("#content").html(blob);
+            var content = $("#chat").val();
+            var sText = content + "\r\n" + blob;
+            $("#chat").val(sText);
         };
 
         // websocket连接打开
@@ -42,10 +42,12 @@
         }
     }
 </script>
+<div id="content">
+    <textarea id="chat" cols="30" rows="10"></textarea>
+</div>
 <form onsubmit="return false;">
     <input type="text" name="message">
     <input type="button" value="提交" onclick="send(this.form.message.value)">
-    <div id="content"></div>
 </form>
 </body>
 </html>

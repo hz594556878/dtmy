@@ -1,10 +1,14 @@
 package com.dtmy.vertx.verticle;
 
+import com.dtmy.vertx.common.Topic;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.eventbus.EventBus;
+import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.ServerWebSocket;
-import io.vertx.ext.web.Router;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,51 +24,78 @@ import java.util.Map;
  * @version 2.0.0
  */
 public class WebSocketVerticle extends AbstractVerticle {
-    private Map<String, ServerWebSocket> connectionMap = new HashMap<>(16);
+    private static Map<String, ServerWebSocket> connectionMap = new HashMap<>(16);
+
+    private EventBus eventBus;
+
+    private MessageConsumer<Object> consumer;
+
+    private String username;
 
     @Override
     public void start() throws Exception {
+        eventBus = vertx.eventBus();
+        consumer = eventBus.consumer(Topic.USERNAME);
 
         HttpServer server = vertx.createHttpServer();
-
-        Router router = Router.router(vertx);
-
-        router.route("/").handler(routingContext -> {
-            routingContext.response().sendFile("html/ws.html");
-        });
         websocketMethod(server);
-        server.requestHandler(router::accept).listen(8080);
+        server.listen(8880);
     }
 
     public void websocketMethod(HttpServer server) {
+        consumer.handler(message -> setUsername(message.body().toString()));
+
         server.websocketHandler(webSocket -> {
-            // 获取每一次链接的ID
-            String id = webSocket.binaryHandlerID();
-            if (!checkID(id)) {
+            boolean isLogin = false;
+            String id = getUsername();
+            System.out.println("id: " + id);
+            if (!"".equals(id) && !checkID(id) ) {
+                isLogin = true;
                 connectionMap.put(id, webSocket);
             }
-
             //　WebSocket 连接
-            webSocket.frameHandler(handler -> {
-                String textData = handler.textData();
-                String currID = webSocket.binaryHandlerID();
-                for (Map.Entry<String, ServerWebSocket> entry : connectionMap.entrySet()) {
-                    if (currID.equals(entry.getKey())) {
-                        continue;
-                    }
-                    entry.getValue().writeTextMessage(textData);
-                }
-            });
-
-            // WebSocket 关闭
-            webSocket.closeHandler(handler -> {
-                System.out.println(id + " 关闭连接");
-                connectionMap.remove(id);
-            });
+            writeTextMessage(webSocket, isLogin);
+            closeWebSocket(webSocket, id);
         });
+    }
+
+    public void writeTextMessage(ServerWebSocket webSocket, boolean isLogin) {
+        webSocket.frameHandler(handler -> {
+            String textData = buildMessage(handler.textData());
+            for (Map.Entry<String, ServerWebSocket> entry : connectionMap.entrySet()) {
+                entry.getValue().writeFinalTextFrame(textData);
+            }
+        });
+    }
+
+
+
+    public void closeWebSocket(ServerWebSocket webSocket, String id) {
+        webSocket.closeHandler(handler -> connectionMap.remove(id));
     }
 
     public boolean checkID(String id) {
         return connectionMap.containsKey(id);
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String buildMessage(String srcMessage){
+        String id = getUsername();
+        LocalDate date = LocalDate.now();
+        LocalTime time = LocalTime.now();
+        StringBuffer message = new StringBuffer(id);
+        message.append(date);
+        message.append(" ");
+        message.append(time);
+        message.append("\r\n");
+        message.append(srcMessage);
+        return message.toString();
     }
 }

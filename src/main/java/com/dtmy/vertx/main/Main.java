@@ -1,8 +1,10 @@
 package com.dtmy.vertx.main;
 
-import com.dtmy.vertx.verticle.WebSocketClientVerticle;
+import com.dtmy.vertx.verticle.PageVerticle;
 import com.dtmy.vertx.verticle.WebSocketVerticle;
 import io.vertx.core.Vertx;
+import io.vertx.redis.RedisClient;
+import io.vertx.redis.RedisOptions;
 
 /**
  * <ul>
@@ -19,6 +21,6 @@ public class Main {
     public static void main(String[] args) {
         Vertx vertx = Vertx.vertx();
         vertx.deployVerticle(WebSocketVerticle.class.getName());
-      //  vertx.deployVerticle(WebSocketClientVerticle.class.getName());
+        vertx.deployVerticle(PageVerticle.class.getName());
     }
 }
