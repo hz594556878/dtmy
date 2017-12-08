@@ -1,6 +1,7 @@
 package com.dtmy.vertx.verticle;
 
 import com.dtmy.vertx.common.Topic;
+import com.dtmy.vertx.pojo.User;
 import com.dtmy.vertx.redis.CommonRedis;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.eventbus.EventBus;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * <ul>
@@ -31,9 +33,9 @@ public class WebSocketVerticle extends AbstractVerticle {
 
     private MessageConsumer<Object> consumer;
 
-    private String username;
-
     private CommonRedis redisClient;
+
+    private User user = new User();
 
     @Override
     public void start() throws Exception {
@@ -47,52 +49,51 @@ public class WebSocketVerticle extends AbstractVerticle {
     }
 
     public void websocketMethod(HttpServer server) {
-        consumer.handler(message -> setUsername(message.body().toString()));
+        consumer.handler(message -> user.setUsername(message.body().toString()));
 
         server.websocketHandler(webSocket -> {
-            String id = getUsername();
+            String username = user.getUsername();
             String uuid = webSocket.binaryHandlerID();
-            redisClient.set(uuid, id);
-            if (!"".equals(id) && !checkID(id)) {
-                connectionMap.put(id, webSocket);
+            redisClient.set(uuid, username);
+            if (!"".equals(username) && !checkID(username)) {
+                connectionMap.put(username, webSocket);
             }
             //　WebSocket 连接
-            writeTextMessage(webSocket);
-            closeWebSocket(webSocket, id);
+            writeTextMessage(webSocket, uuid);
+            closeWebSocket(webSocket, username);
         });
     }
 
-    public void writeTextMessage(ServerWebSocket webSocket) {
+    public void writeTextMessage(ServerWebSocket webSocket, String uuid) {
         webSocket.frameHandler(handler -> {
-            String textData = buildMessage(handler.textData());
+            User user = redisClient.get(uuid, this.user);
+            String textData = buildMessage(handler.textData(), user);
             for (Map.Entry<String, ServerWebSocket> entry : connectionMap.entrySet()) {
                 entry.getValue().writeFinalTextFrame(textData);
             }
         });
     }
 
-
     public void closeWebSocket(ServerWebSocket webSocket, String id) {
-        webSocket.closeHandler(handler -> connectionMap.remove(id));
+        webSocket.closeHandler(handler -> {
+            ServerWebSocket remove = connectionMap.remove(id);
+            if (!Objects.isNull(remove)) {
+                redisClient.del(id);
+            }
+
+        });
     }
 
     public boolean checkID(String id) {
         return connectionMap.containsKey(id);
     }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String buildMessage(String srcMessage) {
-        String id = getUsername();
+    public String buildMessage(String srcMessage, User u) {
+        String id = u.getUsername();
         LocalDate date = LocalDate.now();
         LocalTime time = LocalTime.now();
         StringBuffer message = new StringBuffer(id);
+        message.append(" ");
         message.append(date);
         message.append(" ");
         message.append(time);
